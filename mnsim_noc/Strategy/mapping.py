@@ -277,9 +277,12 @@ class Individual:
     # tool fuctions for mapping
     def get_nearest_pos(self, pos, map_list):
         for distance in range(1,self.tile_row+self.tile_column-1):
+            loc_list = []
             for loc in [(i+pos[0],distance-abs(i)+pos[1]) for i in range(-distance,distance)]+[(i+pos[0],abs(i)-distance+pos[1]) for i in range(distance,-distance,-1)]:
                 if 0<=loc[0]<self.tile_row and 0<=loc[1]<self.tile_column and map_list[loc[0]][loc[1]] == -1:
-                    return loc
+                    loc_list.append(loc)
+            if loc_list:
+                return loc_list[random.randint(0,len(loc_list)-1)]
     def get_random_point(self, position_list):
         """
         get a random point
@@ -333,11 +336,22 @@ class Individual:
     def mutation_remap(self, parent):
         self.map_list = copy.deepcopy(parent.map_list)
         self.position_list = copy.deepcopy(parent.position_list)
-        cut_place = random.randint(0,self.tile_num-1)
-        for tile_id in range(cut_place,self.tile_num):
-            loc = self.position_list[tile_id]
-            self.map_list[loc[0]][loc[1]] = -1
-            self.position_list[tile_id] = None
+        cut_place_1 = random.randint(0,self.tile_num-2)
+        cut_place_2 = random.randint(cut_place_1+1,self.tile_num-1)
+        if random.random() < 0.5:
+            for tile_id in range(cut_place_1,cut_place_2+1):
+                loc = self.position_list[tile_id]
+                self.map_list[loc[0]][loc[1]] = -1
+                self.position_list[tile_id] = None
+        else:
+            for tile_id in range(0,cut_place_1):
+                loc = self.position_list[tile_id]
+                self.map_list[loc[0]][loc[1]] = -1
+                self.position_list[tile_id] = None
+            for tile_id in range(cut_place_2+1,self.tile_num):
+                loc = self.position_list[tile_id]
+                self.map_list[loc[0]][loc[1]] = -1
+                self.position_list[tile_id] = None
         self.random_mapping()
     # crossover
     def crossover(self, parent1, parent2):
@@ -395,7 +409,7 @@ class NSGA_II(Mapping):
         # 2.1 tournament
         # 2.2 crossover/mutation
         # 3.repeated evolution
-        for round in range(0,maxGEN):
+        for i in range(0,maxGEN):
             child=[]
             for individual in population:
                 # if mutation happens
@@ -406,6 +420,7 @@ class NSGA_II(Mapping):
                     child.append(new_child)
             elete = sorted(population+child,key=lambda s:s.total_comm)
             population = elete[:N]
+            min_comm = population[0].total_comm
             # print('min comm:'+str(population[0].total_comm))
         # 3.1 tournament
         # 3.2 crossover/mutation
