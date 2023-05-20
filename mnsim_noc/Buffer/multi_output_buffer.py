@@ -18,18 +18,25 @@ class MultiOutputBuffer(Component):
     """
     REGISTRY = "multi_buffer"
     NAME = "behavior_buffer_output"
-    def __init__(self, buffer_size, output_target_id):
+    def __init__(self, buffer_size, output_target_id, exit_table=None, control_tile_id=None):
         super(MultiOutputBuffer, self).__init__()
         # init multi output buffer, id with target
+        self.exit_table = exit_table
         self.output_target_id = output_target_id
         self.output_buffer_dict = dict()
         for target_tile_id in self.output_target_id:
-            self.output_buffer_dict[str(target_tile_id)] = \
-                OutputBuffer(buffer_size)
+            if control_tile_id and target_tile_id < control_tile_id:
+                self.output_buffer_dict[str(target_tile_id)] = \
+                    OutputBuffer(buffer_size, exit_table, to_exit=True)
+            else:
+                self.output_buffer_dict[str(target_tile_id)] = \
+                    OutputBuffer(buffer_size, exit_table)
         # assert output target id
         assert len(output_target_id) > 0, "output target id is empty"
+        self.is_end = False
         if len(output_target_id) == 1 and output_target_id[0] == -1:
             self.set_end()
+            self.is_end = True
 
     def check_enough_space(self, data_list):
         """
@@ -44,6 +51,7 @@ class MultiOutputBuffer(Component):
         """
         add data list to the buffer
         """
+        # TODO: filter from exit table
         for output_buffer in self.output_buffer_dict.values():
             output_buffer.add_data_list(data_list)
 
@@ -51,6 +59,7 @@ class MultiOutputBuffer(Component):
         """
         get the next transfer data of the target tile id
         """
+        # TODO: filter from exit table
         return self.output_buffer_dict[str(target_tile_id)].next_transfer_data()
 
     def delete_data_list(self, data_list, target_tile_id):
@@ -66,9 +75,21 @@ class MultiOutputBuffer(Component):
         for output_buffer in self.output_buffer_dict.values():
             output_buffer.set_end()
 
-    def check_finish(self):
+    def check_finish(self, image_num):
         """
         check if the buffer is finished
         """
         for output_buffer in self.output_buffer_dict.values():
             output_buffer.check_finish()
+        # if self.is_end:
+        #     assert commited_num == image_num, "committed: {}/{}".format(commited_num, image_num)
+
+    def filter_exit_table(self):
+        """
+        filter data according to exit table
+        """
+        assert self.exit_table is not None, "exit table is None"
+        # ("filter exit table: {}".format(self.exit_table))
+        for name, v in self.output_buffer_dict.items():
+            dropped = v.filter_exit_table()
+            print("{}, {}".format(name, dropped))

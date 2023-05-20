@@ -16,9 +16,11 @@ class OutputBuffer(BaseBuffer):
     output behavior buffer
     """
     NAME = "behavior_buffer_output"
-    def __init__(self, buffer_size):
-        super(OutputBuffer, self).__init__(buffer_size)
+    def __init__(self, buffer_size, exit_table=None, to_exit=False):
+        super(OutputBuffer, self).__init__(buffer_size, exit_table)
         self.end_flag = False
+        self.exit_table = exit_table
+        self.to_exit = to_exit
 
     def check_remain_size(self):
         """
@@ -43,6 +45,10 @@ class OutputBuffer(BaseBuffer):
             return None
         if len(self.buffer_data) == 0:
             return None
+        # stop when the img_id is larger than the latest id
+        # !! exists bug when d is not the same for all exits
+        if self.exit_table is not None and self.buffer_data[0][6] > self.exit_table['id'] and not self.to_exit:
+            return None
         else:
             return [self.buffer_data[0]]
 
@@ -56,5 +62,11 @@ class OutputBuffer(BaseBuffer):
         """
         check if the buffer is finished
         """
-        if not self.end_flag:
-            assert len(self.buffer_data) == 0, "the buffer is not empty"
+        assert len(self.buffer_data) == 0, "the buffer is not empty: {}".format(self.exit_table if self.exit_table is not None else "none")
+
+    def filter_exit_table(self):
+        """
+        filter the exit table
+        """
+        assert self.exit_table is not None, "the exit table is None"
+        return super(OutputBuffer, self).filter_exit_table()

@@ -24,7 +24,7 @@ class BaseArray(Component):
     """
     REGISTRY = "array"
     NAME = "behavior_driven"
-    def __init__(self, task_behavior_list, image_num,
+    def __init__(self, task_behavior_list, image_num, sample_list,
         tile_net_shape, buffer_size, band_width,
         mapping_strategy="naive", schedule_strategy="naive", transparent_flag=False
     ):
@@ -45,7 +45,7 @@ class BaseArray(Component):
         self._get_behavior_number(task_behavior_list)
         # init
         self.mapping_strategy = Mapping.get_class_(mapping_strategy)(
-            task_behavior_list, image_num, tile_net_shape, buffer_size, band_width
+            task_behavior_list, image_num, tile_net_shape, buffer_size, band_width, sample_list
         )
         self.output_behavior_list, self.output_behavior_list_cp = \
             self.mapping_strategy.mapping_net()
@@ -59,11 +59,12 @@ class BaseArray(Component):
         # time point list
         self.image_num = image_num
         self.tile_net_shape = tile_net_shape
-
         # record the experiment data
         self.experiment_data_list = []
         # info for csv
         self.csv_info = f"{mapping_strategy}_{schedule_strategy}_{image_num}"
+        # sample list
+        self.sample_list = sample_list
 
     def _get_behavior_number(self, task_behavior_list):
         """
@@ -203,27 +204,27 @@ class BaseArray(Component):
         """
         # add for the transparent flag
         self.experiment_data_list = []
-        for _, (fitness, tile_list, communication_list, wire_net) in \
-            enumerate(self.output_behavior_list_cp):
-            # init wire net and schedule
-            wire_net.set_transparent_flag(True)
-            time_point_list = self.run_single(tile_list, communication_list, wire_net)
-            self.logger.info(
-                f"Transparent, for the {_}th: {fitness}, {time_point_list[-1]/1e6:.3f}"
-            )
-            experiment_data = {}
-            # conflict matrix and others
-            occupy_time_vector, conflict_matrix, bool_matrix = \
-                self._get_conflict_matrix(communication_list)
-            experiment_data['occupy_time_vector'] = occupy_time_vector
-            experiment_data['conflict_matrix'] = conflict_matrix
-            experiment_data['bool_matrix'] = bool_matrix
-            experiment_data['communication_info_list'] = \
-                self._get_communication_info(communication_list)
-            # latency and others
-            experiment_data["latency_t"] = time_point_list[-1]
-            experiment_data["fitness_t"] = fitness
-            self.experiment_data_list.append(experiment_data)
+        # for _, (fitness, tile_list, communication_list, wire_net) in \
+        #     enumerate(self.output_behavior_list_cp):
+        #     # init wire net and schedule
+        #     wire_net.set_transparent_flag(True)
+        #     time_point_list = self.run_single(tile_list, communication_list, wire_net)
+        #     self.logger.info(
+        #         f"Transparent, for the {_}th: {fitness}, {time_point_list[-1]/1e6:.3f}"
+        #     )
+        #     experiment_data = {}
+        #     # conflict matrix and others
+        #     occupy_time_vector, conflict_matrix, bool_matrix = \
+        #         self._get_conflict_matrix(communication_list)
+        #     experiment_data['occupy_time_vector'] = occupy_time_vector
+        #     experiment_data['conflict_matrix'] = conflict_matrix
+        #     experiment_data['bool_matrix'] = bool_matrix
+        #     experiment_data['communication_info_list'] = \
+        #         self._get_communication_info(communication_list)
+        #     # latency and others
+        #     experiment_data["latency_t"] = time_point_list[-1]
+        #     experiment_data["fitness_t"] = fitness
+        #     self.experiment_data_list.append(experiment_data)
         # add for the original flag
         for i, (fitness, tile_list, communication_list, wire_net) in \
             enumerate(self.output_behavior_list):
@@ -235,21 +236,21 @@ class BaseArray(Component):
                 f"Original, for the {i}th: {fitness}, {time_point_list[-1]/1e6:.3f}"
             )
             # latency and others
-            self.experiment_data_list[i]["latency_o"] = time_point_list[-1]
-            self.experiment_data_list[i]["fitness_o"] = fitness
-            for j, communication in enumerate(communication_list):
-                self.experiment_data_list[i]["communication_info_list"][j]["range_o"] = \
-                    communication.get_communication_range()
+            #self.experiment_data_list[i]["latency_o"] = time_point_list[-1]
+            #self.experiment_data_list[i]["fitness_o"] = fitness
+            # for j, communication in enumerate(communication_list):
+            #     self.experiment_data_list[i]["communication_info_list"][j]["range_o"] = \
+            #         communication.get_communication_range()
         # save the experiment data
-        random.seed(time.time())
-        while True:
-            filename = self.csv_info + "_" +\
-                datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + \
-                f"_{random.randint(0, 1000000)}.pkl"
-            if not os.path.exists(filename):
-                with open(filename, 'wb') as f:
-                    pickle.dump(self.experiment_data_list, f)
-                break
+        # random.seed(time.time())
+        # while True:
+        #     filename = self.csv_info + "_" +\
+        #         datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + \
+        #         f"_{random.randint(0, 1000000)}.pkl"
+        #     if not os.path.exists(filename):
+        #         with open(filename, 'wb') as f:
+        #             pickle.dump(self.experiment_data_list, f)
+        #         break
 
     def check_finish(self, tile_list, communication_list, wire_net):
         """

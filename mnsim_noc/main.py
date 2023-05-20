@@ -8,6 +8,7 @@
     2021/10/08 18:48
 """
 import pickle
+import random
 
 import click
 
@@ -44,6 +45,7 @@ def main(config, task, mapping_strategy, schedule_strategy, transprent_flag):
         if schedule_strategy is None else schedule_strategy
     transparent_flag = array_config.get("transparent_flag", False) \
         if transprent_flag is None else transprent_flag
+    sample_path = array_config.get("sample_path", "datas/sample.pkl")
     # overide config
     # load task config behavior list
     task_config_path_list = array_config.get("task_config_path_list", []) \
@@ -54,9 +56,15 @@ def main(config, task, mapping_strategy, schedule_strategy, transprent_flag):
         print(f"loading {i}th task config from {task_config_path} ")
         with open(task_config_path, "rb") as f:
             task_behavior_list.append(pickle.load(f))
+    # process sample
+    with open(sample_path, "rb") as f:
+        sample_list = pickle.load(f)
+    assert image_num <= len(sample_list), "image num is larger than sample list"
+    # sample_list = random.sample(sample_list, image_num)
+    sample_list = sample_list[3:3+image_num]
     # create array
     array = BaseArray(
-        task_behavior_list, image_num,
+        task_behavior_list, image_num, sample_list,
         tile_net_shape, buffer_size, band_width,
         mapping_strategy, schedule_strategy, transparent_flag
     )

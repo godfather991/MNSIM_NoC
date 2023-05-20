@@ -42,10 +42,17 @@ class BaseCommunication(Component):
         # transfer data and path
         self.transfer_data = None
         self.transfer_path = None
+        # transfer rate
+        self.number_total_communication = self.input_tile.image_num * \
+            len(self.input_tile.tile_behavior_cfg["dependence"])
+        self.number_done_communication = 0
         # set communication id
         self.communication_id = \
             f"{input_tile.task_id},{input_tile.tile_id}"+\
             f"->{output_tile.task_id},{output_tile.tile_id}"
+        # if the communication is controlled by other task
+        self.control = self.input_tile.exit_id is not None and self.output_tile.exit_table is not None
+        self.commit = self.output_tile.is_commit
 
     def update(self, current_time):
         """
@@ -58,10 +65,24 @@ class BaseCommunication(Component):
                 # NO next communication
                 self.running_state = False
                 self.input_buffer.add_data_list(self.transfer_data, self.source_tile_id)
+                # if self.source_tile_id in [15,26]:
+                #     print(f"communication from {self.source_tile_id} to {self.target_tile_id} end at {current_time}, {self.transfer_data}")
                 # clear transfer data path
                 self.wire_net.set_data_path_state(
                     self.transfer_path, False, self.communication_id, current_time
                 )
+                # add number of done communication
+                self.number_done_communication += 1
+                # update exit table if controlled
+                if self.control:
+                    assert self.output_tile.exit_table != None, f"exit table should not be None"
+                    self.output_tile.update_exit_table(self.transfer_data)
+                    # print(f"exit_table of {self.output_tile.tile_id} is updated by {self.transfer_data}")
+                # update commit if commit
+                if self.commit:
+                    print("commit from {}, img_id: {}".format(self.input_tile.tile_id, self.transfer_data[0][6]))
+                    if self.input_tile.exit_id is None:
+                        self.input_buffer.delete_data_list(self.transfer_data)
 
     def check_communication_ready(self):
         """
@@ -81,10 +102,7 @@ class BaseCommunication(Component):
         """
         transfer path can be None, means no communication
         """
-        if transfer_path is None:
-            if self.running_state == False:
-                self.communication_end_time = float("inf")
-            return None
+        assert transfer_path is not None
         assert not self.running_state, f"communication should be idle"
         # PHASE COMMUNICATION START
         self.running_state = True
@@ -99,7 +117,6 @@ class BaseCommunication(Component):
         self.wire_net.set_data_path_state(
             self.transfer_path, True, self.communication_id, current_time
         )
-        return None
 
     def get_communication_end_time(self):
         """
@@ -107,14 +124,19 @@ class BaseCommunication(Component):
         """
         if self.running_state:
             return self.communication_end_time
-        else:
-            return float("inf")
+        return float("inf")
 
     def get_communication_range(self):
         """
         get the range of the communication
         """
         return self.communication_range_time
+    
+    def get_done_communication_rate(self):
+        """
+        get the done communication rate
+        """
+        return self.number_done_communication * 1. / self.number_total_communication
 
     def get_path(self):
         """
@@ -128,8 +150,8 @@ class BaseCommunication(Component):
         check if the communication is finish
         """
         assert self.running_state == False, "communication should be idle"
-        assert self.communication_end_time == float("inf"), \
-            "communication end time should be inf"
+        assert self.get_communication_end_time() == float("inf"), \
+                    "communication end time should be inf"
 
     def get_running_rate(self, end_time):
         """

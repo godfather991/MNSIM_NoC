@@ -16,14 +16,17 @@ class InputBuffer(BaseBuffer):
     input behavior buffer
     """
     NAME = "behavior_buffer_input"
-    def __init__(self, buffer_size):
-        super(InputBuffer, self).__init__(buffer_size)
+    def __init__(self, buffer_size, exit_table=None):
+        super(InputBuffer, self).__init__(buffer_size, exit_table)
         # for input buffer, there may be transfer data to add
         self.transfer_data = []
         self.transfer_data_size = 0
         # cache for check already
         self.cache = {}
         self.start_flag = False
+        self.end_flag = False
+        # 
+        self.exit_table = exit_table
 
     def check_remain_size(self):
         """
@@ -73,8 +76,14 @@ class InputBuffer(BaseBuffer):
         assert not self.start_flag, "the input buffer is already started"
         # the data must come from transfer data
         self.delete_transfer_data_list(data_list)
+        # drop the exited data
+        # don't save the control data
+        filtered_data_list = list(filter(lambda x: x[0]>=0, data_list))
+        if self.exit_table is not None:
+            # filter the exit table
+            filtered_data_list = list(filter(lambda x: x[6] not in self.exit_table['table'], filtered_data_list))
         # add data list
-        super(InputBuffer, self).add_data_list(data_list)
+        super(InputBuffer, self).add_data_list(filtered_data_list)
         # clear the cache
         self.cache.clear()
 
@@ -107,9 +116,30 @@ class InputBuffer(BaseBuffer):
         """
         self.start_flag = True
 
+    def set_end(self):
+        """
+        set this buffer ad the end buffer
+        """
+        self.end_flag = True
+
     def check_finish(self):
         """
         check if the input buffer is finished
         """
-        if not self.start_flag:
-            assert len(self.buffer_data) == 0, "the input buffer is not empty"
+        assert len(self.buffer_data) == 0, "the input buffer of tile is not empty, {}".format(self.buffer_data)
+
+    def filter_exit_table(self):
+        """
+        filter the exit table
+        """
+        assert self.exit_table is not None, "the exit table is None"
+        super(InputBuffer, self).filter_exit_table()
+
+    def get_possible_img_id(self):
+        """
+        peek the data
+        """
+        if self.start_flag or len(self.buffer_data) == 0:
+            return None
+        else:
+            return self.buffer_data[0][6]

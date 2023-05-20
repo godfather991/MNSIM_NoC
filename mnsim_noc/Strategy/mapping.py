@@ -26,7 +26,7 @@ class Mapping(Component):
     """
     REGISTRY = "mapping"
     def __init__(self, task_behavior_list, image_num,
-        tile_net_shape, buffer_size, band_width
+        tile_net_shape, buffer_size, band_width, sample_list
     ):
         super(Mapping, self).__init__()
         self.task_behavior_list = task_behavior_list
@@ -35,6 +35,7 @@ class Mapping(Component):
         self.tile_column = tile_net_shape[1]
         self.buffer_size = buffer_size
         self.band_width = band_width
+        self.sample_list = sample_list
 
     def get_adjacency_matrix(self, tile_behavior_list):
         """
@@ -109,7 +110,7 @@ class Mapping(Component):
             # get tile list
             tile_list = []
             for position, tile_behavior in zip(position_list, tile_behavior_list):
-                tile = BaseTile(position, self.image_num, self.buffer_size, tile_behavior)
+                tile = BaseTile(position, self.image_num, self.buffer_size, tile_behavior, self.sample_list)
                 tile_list.append(tile)
             # get wire net
             wire_net = WireNet((self.tile_row, self.tile_column), self.band_width)
@@ -223,6 +224,7 @@ class HeuristicMapping(Mapping):
         # output_position_list = []
         # 2, mutation, crossover, and filter, for max_generation epoch
         for _ in range(max_generation):
+            print(f"Iteration {_}, the best amount is {population[0].fitness}")
             # 2.1, mutation for all
             mutation_population = [candidate.mutation() for candidate in population]
             # 2.2, crossover, based on the fitness ad the probability

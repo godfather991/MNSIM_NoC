@@ -19,14 +19,15 @@ class MultiInputBuffer(Component):
     """
     REGISTRY = "multi_buffer"
     NAME = "behavior_buffer_input"
-    def __init__(self, buffer_size, input_source_id):
+    def __init__(self, buffer_size, input_source_id, exit_table=None):
         super(MultiInputBuffer, self).__init__()
         # init multi input buffer, id with source
+        self.exit_table = exit_table
         self.input_source_id = input_source_id
         self.input_buffer_dict = dict()
         for source_tile_id in self.input_source_id:
             self.input_buffer_dict[str(source_tile_id)] = \
-                InputBuffer(buffer_size // len(self.input_source_id))
+                InputBuffer(buffer_size // len(self.input_source_id), exit_table)
         # check
         self.start_flag = False
         assert len(input_source_id) > 0, "input source id is empty"
@@ -37,7 +38,10 @@ class MultiInputBuffer(Component):
         """
         check if the buffer has enough space to add the data
         """
-        return self.input_buffer_dict[str(source_tile_id)].check_enough_space(data_list)
+        try:
+            return self.input_buffer_dict[str(source_tile_id)].check_enough_space(data_list)
+        except KeyError:
+            print(data_list)
 
     def add_transfer_data_list(self, data_list, source_tile_id):
         """
@@ -98,3 +102,26 @@ class MultiInputBuffer(Component):
         """
         for _, v in self.input_buffer_dict.items():
             v.check_finish()
+
+    def filter_exit_table(self):
+        """
+        filter data according to exit table
+        """
+        assert self.exit_table is not None, "exit table is None"
+        # print("filter exit table: {}".format(self.exit_table))
+        for _, v in self.input_buffer_dict.items():
+            v.filter_exit_table()
+
+    def get_possible_img_id(self):
+        """
+        peek the latest data in the buffer
+        """
+        possible_list = []
+        for _, v in self.input_buffer_dict.items():
+            if v.get_possible_img_id():
+                possible_list.append(v.get_possible_img_id())
+        if len(possible_list) == 0:
+            return None
+        else:
+            return min(possible_list)
+        

@@ -23,7 +23,7 @@ URL = "https://github.com/ILTShade/MNSIM_NoC"
 
 DESCRIPTION = "Dynamic Network no Chip implementation"
 with open(os.path.join(HERE, "README.md")) as f:
-    LONG_DESCRIPTION = f.readlines()
+    LONG_DESCRIPTION = f.readlines()[0]
 
 AUTHORS = "Hanbo Sun, Zhenhua Zhu, Tongxin Xie"
 EMAIL = "sunhanbo123@163.com"

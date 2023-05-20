@@ -9,14 +9,19 @@
 @CreateTime:
     2022/05/07 09:27
 """
+import copy
 from mnsim_noc.utils.component import Component
 
 def get_data_size(data):
     """
     get the size of the data
-    (x, y, start, end, bit, total, image_id, layer_id, in_id, tile_id)
+    data: (x, y, start, end, bit, total, image_id, layer_id, in_id, tile_id)
+    control: (-1, -1, -1, -1, -1, -1, image_id, exit, length, tile_id)
     """
-    return (data[3] - data[2]) * data[4]
+    assert len(data) == 10, "data length should be 10"
+    if data[0] >= 0:
+        return (data[3] - data[2]) * data[4]
+    else: return data[8]
 
 def get_data_tile(data):
     """
@@ -30,11 +35,12 @@ class BaseBuffer(Component):
     """
     REGISTRY = "buffer"
     NAME = "behavior_driven"
-    def __init__(self, buffer_size):
+    def __init__(self, buffer_size, exit_table):
         """
         buffer_size: buffer size in bits
         """
         super(BaseBuffer, self).__init__()
+        self.exit_table = exit_table
         self.buffer_size = buffer_size
         self.buffer_data = []
         self.used_space = 0
@@ -68,3 +74,16 @@ class BaseBuffer(Component):
         """
         for data in data_list:
             self._delete_one(data)
+
+    def filter_exit_table(self):
+        """
+        filter the data in the buffer by the exit table
+        """
+        assert self.exit_table is not None, "exit table is None"
+        tmp_drop_list = list(filter(lambda x: x[6] in self.exit_table['table'], self.buffer_data))
+        # for data in self.buffer_data:
+        #     if data[6] in self.exit_table['table']:
+        #         tmp_drop_list.append(data)
+        buffer_data = copy.deepcopy(self.buffer_data)
+        self.delete_data_list(tmp_drop_list)
+        return(buffer_data[-1] if len(buffer_data) > 0 else buffer_data)
